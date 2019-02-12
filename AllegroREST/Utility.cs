@@ -1,4 +1,6 @@
-﻿using System;
+﻿using AllegroREST.Models;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -11,6 +13,8 @@ namespace AllegroREST
 {
     public static class Utility
     {
+        static JsonSerializer serializer = new JsonSerializer();
+
         public static T Deserialize<T>(Stream stream)
         {
             var set = new DataContractJsonSerializerSettings
@@ -53,6 +57,33 @@ namespace AllegroREST
             }
         }
 
+        public static void SerializeToken(Token token)
+        {
+            string path = "secret.json";
+            using (StreamWriter file = File.CreateText(path))
+            {
+                serializer.Serialize(file, token);
+            }
+        }
+
+        public static Token DeserializeToken
+        {
+            get
+            {
+                string filename = "secret.json";
+                if (File.Exists(filename))
+                {
+                    Console.WriteLine("Token istnieje pobieram dane z pliku");
+                    using (StreamReader file = File.OpenText(filename))
+                    {
+                        Token token = (Token)serializer.Deserialize(file, typeof(Token));
+                        return token;
+                    }
+                }
+                Console.WriteLine("Token nie istnieje spróbujmy utworzyć nowy.");
+                return null;
+            }
+        }
     }
 
 }

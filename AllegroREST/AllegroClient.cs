@@ -17,7 +17,7 @@ namespace AllegroREST
         private HttpClient _client { get; }
         private readonly string clientId = "c07b8c4498ca4598942f9b2477adf6f0";
         private readonly string secretId = "S1VjLES6FQMiSOelofq21ZAMRwg7qQlTdT0L17Otz6E7bbt1NxCFZDOjvbJ7CrOd";
-        private Uri AUTH_LINK = new Uri("https://allegro.pl/auth/oauth/device");
+        private readonly Uri AUTH_LINK = new Uri("https://allegro.pl/auth/oauth/device");
         private Token Token { set; get; }
 
         public AllegroClient(HttpClient client)
@@ -27,10 +27,17 @@ namespace AllegroREST
 
         public async Task Authorize()
         {
-            var authData = await getAuthData();
-            Utility.OpenUrl(authData.VerificationUriComplete);
-            Token = await askServerForToken(clientId, secretId, authData);
-            Console.WriteLine(Token.AccessToken);
+            Token = Utility.DeserializeToken;
+            Console.WriteLine("UZYKALEM TOKEN: " + Token.AccessToken);
+
+            if (Token is null)
+            {
+                var authData = await getAuthData();
+                Utility.OpenUrl(authData.VerificationUriComplete);
+                Token = await askServerForToken(clientId, secretId, authData);
+                Console.WriteLine("UZYKALEM TOKEN: " + Token.AccessToken);
+                Utility.SerializeToken(Token);
+            }
         }
 
         private async Task<Token> askServerForToken(string clientId, string secretId, AuthorizationData authData)
