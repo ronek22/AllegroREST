@@ -81,7 +81,7 @@ namespace AllegroREST
                     }
                 }
                 Console.WriteLine("Token nie istnieje spróbujmy utworzyć nowy.");
-                return null;
+                return default;
             }
         }
     }

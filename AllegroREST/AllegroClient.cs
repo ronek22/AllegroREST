@@ -9,6 +9,7 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace AllegroREST
 {
@@ -18,6 +19,7 @@ namespace AllegroREST
         private readonly string clientId = "c07b8c4498ca4598942f9b2477adf6f0";
         private readonly string secretId = "S1VjLES6FQMiSOelofq21ZAMRwg7qQlTdT0L17Otz6E7bbt1NxCFZDOjvbJ7CrOd";
         private readonly Uri AUTH_LINK = new Uri("https://allegro.pl/auth/oauth/device");
+        private readonly Uri API_LINK = new Uri("https://api.allegro.pl/");
         private Token Token { set; get; }
 
         public AllegroClient(HttpClient client)
@@ -25,22 +27,80 @@ namespace AllegroREST
             _client = client;
         }
 
+        public async Task GetListingByPhrase(string phrase)
+        {
+            UriBuilder builder = new UriBuilder("https://api.allegro.pl/offers/listing");
+            builder.Query = $"phrase={phrase}";
+
+            _client.DefaultRequestHeaders.Clear();
+            _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+            var response = await _client.GetAsync(builder.Uri);
+            var contents = await response.Content.ReadAsStringAsync();
+
+            Console.WriteLine("MOJE OFERTY");
+            Console.WriteLine(contents);
+        }
+
+        public async Task GetMyOffers()
+        {
+            Uri endpoint = new Uri(API_LINK,  "/sale/offers");
+
+            _client.DefaultRequestHeaders.Clear();
+            _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+            var response = await _client.GetAsync(endpoint);
+            var contents = await response.Content.ReadAsStringAsync();
+
+            Console.WriteLine("MOJE OFERTY");
+            Console.WriteLine(contents);
+        }
+
         public async Task Authorize()
         {
             Token = Utility.DeserializeToken;
-            Console.WriteLine("UZYKALEM TOKEN: " + Token.AccessToken);
 
-            if (Token is null)
+            if (Token == default(Token))
             {
-                var authData = await getAuthData();
-                Utility.OpenUrl(authData.VerificationUriComplete);
-                Token = await askServerForToken(clientId, secretId, authData);
-                Console.WriteLine("UZYKALEM TOKEN: " + Token.AccessToken);
-                Utility.SerializeToken(Token);
+                await RequestAccessToken();
             }
+
+            Console.WriteLine("UZYKALEM TOKEN: " + Token.AccessToken);
+            Console.WriteLine("=================");
         }
 
-        private async Task<Token> askServerForToken(string clientId, string secretId, AuthorizationData authData)
+        private async Task RequestAccessToken()
+        {
+            var authData = await getAuthData();
+            Utility.OpenUrl(authData.VerificationUriComplete);
+            Token = await AskServerForToken(clientId, secretId, authData);
+            Console.WriteLine("UZYKALEM TOKEN: " + Token.AccessToken);
+            Utility.SerializeToken(Token);
+        }
+
+        public async Task RefreshAccessToken()
+        {
+            Uri endpoint = new Uri("https://allegro.pl/auth/oauth/token");
+
+            var formContent = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                {"grant_type", "refresh_token" },
+                {"refresh_token", Token.RefreshToken}
+            });
+
+            _client.DefaultRequestHeaders.Clear();
+            _client.DefaultRequestHeaders.Add("Authorization", getAuthParameters(clientId, secretId));
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            var response = await _client.PostAsync(endpoint, formContent);
+            var contents = await response.Content.ReadAsStreamAsync();
+            Token = Utility.Deserialize<Token>(contents);
+            Utility.SerializeToken(Token);
+        }
+
+        private async Task<Token> AskServerForToken(string clientId, string secretId, AuthorizationData authData)
         {
             return await Task.Run(async () =>
             {
