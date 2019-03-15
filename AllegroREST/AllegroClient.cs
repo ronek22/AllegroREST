@@ -1,4 +1,5 @@
 ﻿using AllegroREST.Models;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,6 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using System.Linq;
 
 namespace AllegroREST
 {
@@ -27,10 +29,69 @@ namespace AllegroREST
             _client = client;
         }
 
-        public async Task GetListingByPhrase(string phrase)
+        public async Task GetMotorOffers()
         {
+            List<Item> items = new List<Item>();
+            var categories = await GetMotorCategories();
+            foreach (var category in categories)
+            {
+                Console.WriteLine("{0, -10} | {1,5}", category.Name, category.Count);
+                for (int offset = 0; offset <= category.Count; offset += 100)
+                {
+                    UriBuilder builder = new UriBuilder("https://api.allegro.pl/offers/listing");
+                    var paramValues = HttpUtility.ParseQueryString(builder.Query);
+                    paramValues.Add("category.id", category.Id);
+                    paramValues.Add("limit", "100");
+                    paramValues.Add("offset", offset.ToString());
+                    builder.Query = paramValues.ToString();
+
+                    _client.DefaultRequestHeaders.Clear();
+                    _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
+                    _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+                    var response = await _client.GetAsync(builder.Uri);
+                    var contents = await response.Content.ReadAsStringAsync();
+                    var json = JObject.Parse(contents);
+
+                    var promotedItems = json.SelectTokens("items.promoted[*]").ToList();
+                    var regularItems = json.SelectTokens("items.regular[*]").ToList();
+
+                    promotedItems.ForEach(x => items.Add(x.ToObject<Item>()));
+                    regularItems.ForEach(x => items.Add(x.ToObject<Item>()));
+                }
+                items.ForEach(i => Console.WriteLine(i));
+                break;
+            }
+
+
+
+
+
+
+
+
+
+
+
+            // foreach (var offer in promotedItems)
+            // {
+            //     var name = offer["name"];
+            //     var price = offer["sellingMode"]["price"]["amount"];
+            //     var output = string.Format("{0,-50} | {1,5}", name, price);
+            //     Console.WriteLine(output);
+            // }
+
+        }
+
+        public async Task<List<Category>> GetMotorCategories()
+        {
+            List<Category> categories = new List<Category>();
+
             UriBuilder builder = new UriBuilder("https://api.allegro.pl/offers/listing");
-            builder.Query = $"phrase={phrase}";
+            var paramValues = HttpUtility.ParseQueryString(builder.Query);
+            paramValues.Add("category.id", "4029");
+
+            builder.Query = paramValues.ToString();
 
             _client.DefaultRequestHeaders.Clear();
             _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
@@ -39,24 +100,18 @@ namespace AllegroREST
             var response = await _client.GetAsync(builder.Uri);
             var contents = await response.Content.ReadAsStringAsync();
 
-            Console.WriteLine("MOJE OFERTY");
-            Console.WriteLine(contents);
+            var json = JObject.Parse(contents);
+            var promotedItems = json.SelectTokens("categories.subcategories[*]");
+
+            foreach (var offer in promotedItems)
+            {
+                categories.Add(offer.ToObject<Category>());
+            }
+
+            return categories;
         }
 
-        public async Task GetMyOffers()
-        {
-            Uri endpoint = new Uri(API_LINK,  "/sale/offers");
 
-            _client.DefaultRequestHeaders.Clear();
-            _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
-            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
-
-            var response = await _client.GetAsync(endpoint);
-            var contents = await response.Content.ReadAsStringAsync();
-
-            Console.WriteLine("MOJE OFERTY");
-            Console.WriteLine(contents);
-        }
 
         public async Task Authorize()
         {
@@ -67,8 +122,11 @@ namespace AllegroREST
                 await RequestAccessToken();
             }
 
-            Console.WriteLine("UZYKALEM TOKEN: " + Token.AccessToken);
-            Console.WriteLine("=================");
+            if (Token.IsExpired())
+            {
+                Console.WriteLine("Token expired, refreshing");
+                await RefreshAccessToken();
+            }
         }
 
         private async Task RequestAccessToken()
@@ -80,7 +138,7 @@ namespace AllegroREST
             Utility.SerializeToken(Token);
         }
 
-        public async Task RefreshAccessToken()
+        private async Task RefreshAccessToken()
         {
             Uri endpoint = new Uri("https://allegro.pl/auth/oauth/token");
 
@@ -97,6 +155,7 @@ namespace AllegroREST
             var response = await _client.PostAsync(endpoint, formContent);
             var contents = await response.Content.ReadAsStreamAsync();
             Token = Utility.Deserialize<Token>(contents);
+            Token.TimeCreated = DateTime.UtcNow;
             Utility.SerializeToken(Token);
         }
 
@@ -116,6 +175,7 @@ namespace AllegroREST
                     if (res.ResultOk)
                     {
                         token = Utility.Deserialize<Token>(res.Stream);
+                        token.TimeCreated = DateTime.UtcNow;
                         break;
                     }
                     Thread.Sleep(1000 * authData.Interval);

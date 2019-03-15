@@ -35,6 +35,15 @@ namespace AllegroREST.Models
         [IgnoreDataMember]
         public string RefreshHeader => "refresh_token=" + RefreshToken;
 
+        [DataMember(Name="time_created", IsRequired=false)]
+        public DateTime TimeCreated { get; set; }
+
+        public bool IsExpired() {
+            DateTime now = DateTime.UtcNow;
+            var seconds = (long)Math.Abs((now - TimeCreated).TotalSeconds);
+            return seconds > ExpiresIn;
+        }
+
         public override string ToString()
         {
             return "TokenOauth" + "\n" + ExpiresIn + "\n" + AuthorizationHeader;

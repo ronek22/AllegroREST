@@ -23,7 +23,9 @@ namespace AllegroREST
             // working with our client 
             var allegro = serviceProvider.GetRequiredService<AllegroClient>();
             await allegro.Authorize();
-            await allegro.RefreshAccessToken();
+            
+            await allegro.GetMotorOffers();
+            //await allegro.RefreshAccessToken();
             //await allegro.GetMyOffers();
             //await allegro.GetListingByPhrase("motorola");
         }
