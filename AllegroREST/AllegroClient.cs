@@ -62,25 +62,6 @@ namespace AllegroREST
                 items.ForEach(i => Console.WriteLine(i));
                 break;
             }
-
-
-
-
-
-
-
-
-
-
-
-            // foreach (var offer in promotedItems)
-            // {
-            //     var name = offer["name"];
-            //     var price = offer["sellingMode"]["price"]["amount"];
-            //     var output = string.Format("{0,-50} | {1,5}", name, price);
-            //     Console.WriteLine(output);
-            // }
-
         }
 
         public async Task<List<Category>> GetMotorCategories()
