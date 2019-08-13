@@ -1,4 +1,5 @@
 ﻿using AllegroREST.Models;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -20,16 +21,20 @@ namespace AllegroREST
         private HttpClient _client { get; }
         // Dane z utworzonej aplikacji https://apps.developer.allegro.pl/new
         // Aplikacja typu device_code
-        private readonly string clientId = "c07b8c4498ca4598942f9b2477adf6f0";
-        private readonly string secretId = "S1VjLES6FQMiSOelofq21ZAMRwg7qQlTdT0L17Otz6E7bbt1NxCFZDOjvbJ7CrOd";
+        private readonly IConfiguration _configuration;
+        private readonly string clientId;
+        private readonly string secretId;
         private readonly Uri AUTH_LINK = new Uri("https://allegro.pl/auth/oauth/device");
         private readonly Uri API_LINK = new Uri("https://api.allegro.pl/");
         // Token jako prywatna zmienna klasy, latwe dokonowynanie requestow dla zalogowanego uzytkownika
         private Token Token { set; get; }
 
-        public AllegroClient(HttpClient client)
+        public AllegroClient(HttpClient client, IConfigurationRoot configuration)
         {
             _client = client;
+            _configuration = configuration;
+            clientId = _configuration.GetSection("API")["CLIENT_ID"];
+            secretId = _configuration.GetSection("API")["SECRET_ID"];
         }
 
         public async Task<String> GetOfferDetails(string nrAukcji)

@@ -1,5 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using AllegroREST.Models;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -27,7 +30,7 @@ namespace AllegroREST
         {
             // Konfigurowanie zaleznosci
             var services = new ServiceCollection();
-            services.AddHttpClient<AllegroClient>();
+            ConfigureServices(services);
             var serviceProvider = services.BuildServiceProvider();
 
             // Praca z klientem
@@ -56,6 +59,18 @@ namespace AllegroREST
 
                 }
             } while (cki.Key != ConsoleKey.Escape);
+        }
+
+        private static void ConfigureServices(IServiceCollection services)
+        {
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", false)
+                .Build();
+
+            services.AddSingleton<IConfigurationRoot>(configuration);
+            services.AddHttpClient<AllegroClient>();
+
         }
 
     }
