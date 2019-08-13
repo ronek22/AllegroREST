@@ -19,14 +19,12 @@ namespace AllegroREST
     public class AllegroClient
     {
         private HttpClient _client { get; }
-        // Dane z utworzonej aplikacji https://apps.developer.allegro.pl/new
-        // Aplikacja typu device_code
         private readonly IConfiguration _configuration;
         private readonly string clientId;
         private readonly string secretId;
-        private readonly Uri AUTH_LINK = new Uri("https://allegro.pl/auth/oauth/device");
-        private readonly Uri API_LINK = new Uri("https://api.allegro.pl/");
-        // Token jako prywatna zmienna klasy, latwe dokonowynanie requestow dla zalogowanego uzytkownika
+
+        private static readonly Uri BASE_LINK = new Uri("https://allegro.pl.allegrosandbox.pl");
+        private static readonly Uri API_LINK = new Uri("https://api.allegro.pl.allegrosandbox.pl");
         private Token Token { set; get; }
 
         public AllegroClient(HttpClient client, IConfigurationRoot configuration)
@@ -40,19 +38,16 @@ namespace AllegroREST
         public async Task<String> GetOfferDetails(string nrAukcji)
 
         {
+            UriBuilder builder = new UriBuilder($"{API_LINK}sale/offers/" + nrAukcji);
+            SetDefaultHeaders();
+            var json = await SendRequestAndParseAsync(builder.Uri);
 
-            UriBuilder builder = new UriBuilder("https://api.allegro.pl/sale/offers/" + nrAukcji);
-            //var paramValues = HttpUtility.ParseQueryString(builder.Query);
+            // Mapowanie json do obiektu klasy Offer
+            Offer offer = json.ToObject<Offer>();
 
-            _client.DefaultRequestHeaders.Clear();
-            _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
-            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
-
-            var response = await _client.GetAsync(builder.Uri);
-            var contents = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(contents);
             string plu = "";
-            int poz = json.ToString().IndexOf("Kod PLU: __");
+            int poz = offer.Description.IndexOf("Kod PLU: __");
+
             if (poz != 0)
             {
                 plu = json.ToString().Substring(poz + 11);
@@ -65,33 +60,25 @@ namespace AllegroREST
 
         public async Task GetListingByPhrase(string phrase)
         {
-            UriBuilder builder = new UriBuilder("https://api.allegro.pl/offers/listing");
+            UriBuilder builder = new UriBuilder($"{API_LINK}offers/listing");
             // Dodwania parametrow
             var paramValues = HttpUtility.ParseQueryString(builder.Query);
             paramValues.Add("phrase", phrase);
             paramValues.Add("limit", "20");
             builder.Query = paramValues.ToString();
 
+            SetDefaultHeaders();
+            var json = await SendRequestAndParseAsync(builder.Uri);
 
-            _client.DefaultRequestHeaders.Clear();
-            _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
-            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
-
-            var response = await _client.GetAsync(builder.Uri);
-            var contents = await response.Content.ReadAsStringAsync();
-            // Parsowanie otrzymanego jsona
-            var json = JObject.Parse(contents);
             var promotedItems = json.SelectTokens("items.promoted[*]");
 
             Console.WriteLine("LISTING OFFERT");
             Console.WriteLine(promotedItems.Count());
             foreach (var offer in promotedItems)
             {
-                var id = offer["id"];
-                var name = offer["name"];
-                var price = offer["sellingMode"]["price"]["amount"];
-                // formatowanie wyjscia
-                var output = string.Format("{0,-15} | {1,-50} | {2,5}", id, name, price);
+                var currentOffer = offer.ToObject<Offer>();
+                var output = string.Format("{0,-15} | {1,-50} | {2,5}", 
+                    currentOffer.Id, currentOffer.Name, currentOffer.SellingMode.Price.Amount);
                 Console.WriteLine(output);
             }
         }
@@ -99,17 +86,29 @@ namespace AllegroREST
         public async Task GetMyOffers()
         {
             Uri endpoint = new Uri(API_LINK, "/sale/offers");
+            SetDefaultHeaders();
+            var json = await SendRequestAndParseAsync(endpoint);
 
+            Console.WriteLine("MOJE OFERTY");
+            Console.WriteLine(json);
+        }
+
+        #region Helpers
+
+        private async Task<JObject> SendRequestAndParseAsync(Uri endpoint) 
+        {
+            var response = await _client.GetAsync(endpoint);
+            var contents = await response.Content.ReadAsStringAsync();
+            return JObject.Parse(contents);
+        }
+
+        private void SetDefaultHeaders()
+        {
             _client.DefaultRequestHeaders.Clear();
             _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
             _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
-
-            var response = await _client.GetAsync(endpoint);
-            var contents = await response.Content.ReadAsStringAsync();
-
-            Console.WriteLine("MOJE OFERTY");
-            Console.WriteLine(contents);
         }
+        #endregion
 
         #region Authentication
 
@@ -137,7 +136,7 @@ namespace AllegroREST
 
         public async Task RefreshAccessToken()
         {
-            Uri endpoint = new Uri("https://allegro.pl/auth/oauth/token");
+            Uri endpoint = new Uri(BASE_LINK, "/auth/oauth/token");
 
             var formContent = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -161,7 +160,7 @@ namespace AllegroREST
             {
                 Token token = null;
                 Thread.Sleep(1000 * 15);
-                var rtdf = "https://allegro.pl/auth/oauth/token?grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&device_code=";
+                var rtdf = $"{BASE_LINK}auth/oauth/token?grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&device_code=";
                 var url = new Uri(rtdf + authData.DeviceCode);
                 var oAuth = GetAuthParameters(clientId, secretId);
                 while (true)
@@ -186,6 +185,8 @@ namespace AllegroREST
             {
                 {"client_id", clientId }
             });
+
+            var AUTH_LINK = new Uri(BASE_LINK, "/auth/oauth/device");
 
             _client.BaseAddress = AUTH_LINK;
             _client.DefaultRequestHeaders.Clear();
