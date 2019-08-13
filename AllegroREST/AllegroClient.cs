@@ -32,6 +32,32 @@ namespace AllegroREST
             _client = client;
         }
 
+        public async Task<String> GetOfferDetails(string nrAukcji)
+
+        {
+
+            UriBuilder builder = new UriBuilder("https://api.allegro.pl/sale/offers/" + nrAukcji);
+            //var paramValues = HttpUtility.ParseQueryString(builder.Query);
+
+            _client.DefaultRequestHeaders.Clear();
+            _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.allegro.public.v1+json"));
+
+            var response = await _client.GetAsync(builder.Uri);
+            var contents = await response.Content.ReadAsStringAsync();
+            var json = JObject.Parse(contents);
+            string plu = "";
+            int poz = json.ToString().IndexOf("Kod PLU: __");
+            if (poz != 0)
+            {
+                plu = json.ToString().Substring(poz + 11);
+                poz = plu.IndexOf("__");
+                plu = plu.Substring(0, poz);
+            }
+
+            return plu;
+        }
+
         public async Task GetListingByPhrase(string phrase)
         {
             UriBuilder builder = new UriBuilder("https://api.allegro.pl/offers/listing");
@@ -54,19 +80,20 @@ namespace AllegroREST
 
             Console.WriteLine("LISTING OFFERT");
             Console.WriteLine(promotedItems.Count());
-            foreach(var offer in promotedItems)
+            foreach (var offer in promotedItems)
             {
+                var id = offer["id"];
                 var name = offer["name"];
                 var price = offer["sellingMode"]["price"]["amount"];
                 // formatowanie wyjscia
-                var output = string.Format("{0,-50} | {1,5}", name, price);
+                var output = string.Format("{0,-15} | {1,-50} | {2,5}", id, name, price);
                 Console.WriteLine(output);
             }
         }
 
         public async Task GetMyOffers()
         {
-            Uri endpoint = new Uri(API_LINK,  "/sale/offers");
+            Uri endpoint = new Uri(API_LINK, "/sale/offers");
 
             _client.DefaultRequestHeaders.Clear();
             _client.DefaultRequestHeaders.Add("Authorization", Token.AuthorizationHeader);
@@ -78,6 +105,8 @@ namespace AllegroREST
             Console.WriteLine("MOJE OFERTY");
             Console.WriteLine(contents);
         }
+
+        #region Authentication
 
         public async Task Authorize()
         {
@@ -184,5 +213,6 @@ namespace AllegroREST
             byte[] bytes = Encoding.UTF8.GetBytes(tuple);
             return "Basic " + Convert.ToBase64String(bytes);
         }
+        #endregion
     }
 }
