@@ -15,17 +15,19 @@ namespace AllegroREST
 
         static async Task Run()
         {
-            // configure dependencies
+            // Konfigurowanie zaleznosci
             var services = new ServiceCollection();
             services.AddHttpClient<AllegroClient>();
             var serviceProvider = services.BuildServiceProvider();
 
-            // working with our client 
+            // Praca z klientem
             var allegro = serviceProvider.GetRequiredService<AllegroClient>();
             await allegro.Authorize();
-            await allegro.RefreshAccessToken();
-            //await allegro.GetMyOffers();
-            //await allegro.GetListingByPhrase("motorola");
+
+            await allegro.GetMyOffers();
+            await allegro.GetListingByPhrase("motorola");
+            // Gdy skonczy sie waznosc AccessTokena (12h), mozemy otrzymac nowe tokeny za pomoca tej metody
+            // await allegro.RefreshAccessToken();
         }
 
     }
