@@ -15,5 +15,12 @@ namespace AllegroREST.Models
         [DataMember(Name = "price")]
         public Price Price { get; set; }
 
+        [DataMember(Name="startingPrice")]
+        public dynamic StartinPrice { get; set; }
+
+        [DataMember(Name="minimalPrice")]
+        public dynamic MinimalPrice { get; set; }
+
+
     }
 }

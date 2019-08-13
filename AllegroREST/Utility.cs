@@ -57,6 +57,18 @@ namespace AllegroREST
             }
         }
 
+
+        public static string Serialize(Offer offer)
+        {
+            StringBuilder sb = new StringBuilder();
+            StringWriter sw = new StringWriter(sb);
+            using (JsonWriter writer = new JsonTextWriter(sw))
+            {
+                writer.Formatting = Formatting.Indented;
+                serializer.Serialize(writer, offer);
+            }
+            return sb.ToString();
+        }
         public static void SerializeToken(Token token)
         {
             string path = "secret.json";

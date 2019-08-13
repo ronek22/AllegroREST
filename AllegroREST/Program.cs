@@ -22,7 +22,8 @@ namespace AllegroREST
             Console.WriteLine();
             Console.WriteLine("1. Get my offers");
             Console.WriteLine("2. Get listing by phrase");
-            Console.WriteLine("3. Do something else");
+            Console.WriteLine("3. Get PLU of offer");
+            Console.WriteLine("4. Edit offer");
             Console.WriteLine("[ESC] To Exit");
         }
 
@@ -55,6 +56,9 @@ namespace AllegroREST
                     case "3":
                         Console.WriteLine("Type number of auction: ");
                         Console.WriteLine(await allegro.GetOfferDetails("6206525020"));
+                        break;
+                    case "4":
+                        await allegro.EditOffer("6206525020", "1500.50", "PLN", 1, "UNIT");
                         break;
 
                 }

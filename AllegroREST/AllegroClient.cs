@@ -18,6 +18,7 @@ namespace AllegroREST
 {
     public class AllegroClient
     {
+        #region Constructor and Fields
         private HttpClient _client { get; }
         private readonly IConfiguration _configuration;
         private readonly string clientId;
@@ -35,12 +36,43 @@ namespace AllegroREST
             secretId = _configuration.GetSection("API")["SECRET_ID"];
         }
 
+        #endregion
+
+        #region Feature functions
+
+        public async Task EditOffer(string noAuction, string price, string currency, int available, string unit)
+        {
+            Offer editedOffer = await GetOffer(noAuction);
+            editedOffer.SellingMode.Price.Amount = price; // cena w rest api podana jest jako string
+            editedOffer.SellingMode.Price.Currency = currency;
+            editedOffer.Stock.Available = available;
+            editedOffer.Stock.Unit = unit;
+
+            // TODO: How to PUT THIS TO REST API
+            Uri uri = new Uri(API_LINK, $"/sale/offers/{noAuction}");
+            SetDefaultHeaders();
+            var jsonContent = new StringContent(Utility.Serialize(editedOffer), Encoding.UTF8, "application/vnd.allegro.public.v1+json");
+            var response = await _client.PutAsync(uri, jsonContent);
+            var contents = await response.Content.ReadAsStringAsync();
+
+            Console.WriteLine("Results");
+            Console.WriteLine(JObject.Parse(contents));
+        }
+
+        private async Task<Offer> GetOffer(string nrAukcji)
+        {
+            UriBuilder builder = new UriBuilder($"{API_LINK}sale/offers/{nrAukcji}");
+            SetDefaultHeaders();
+            var json = await GetRequestAndParseAsync(builder.Uri);
+            return json.ToObject<Offer>();
+        }
+
         public async Task<String> GetOfferDetails(string nrAukcji)
 
         {
-            UriBuilder builder = new UriBuilder($"{API_LINK}sale/offers/" + nrAukcji);
+            Uri endpoint = new Uri($"{API_LINK}sale/offers/{nrAukcji}");
             SetDefaultHeaders();
-            var json = await SendRequestAndParseAsync(builder.Uri);
+            var json = await GetRequestAndParseAsync(endpoint);
 
             // Mapowanie json do obiektu klasy Offer
             Offer offer = json.ToObject<Offer>();
@@ -68,7 +100,7 @@ namespace AllegroREST
             builder.Query = paramValues.ToString();
 
             SetDefaultHeaders();
-            var json = await SendRequestAndParseAsync(builder.Uri);
+            var json = await GetRequestAndParseAsync(builder.Uri);
 
             var promotedItems = json.SelectTokens("items.promoted[*]");
 
@@ -87,15 +119,16 @@ namespace AllegroREST
         {
             Uri endpoint = new Uri(API_LINK, "/sale/offers");
             SetDefaultHeaders();
-            var json = await SendRequestAndParseAsync(endpoint);
+            var json = await GetRequestAndParseAsync(endpoint);
 
             Console.WriteLine("MOJE OFERTY");
             Console.WriteLine(json);
         }
+        #endregion
 
         #region Helpers
 
-        private async Task<JObject> SendRequestAndParseAsync(Uri endpoint) 
+        private async Task<JObject> GetRequestAndParseAsync(Uri endpoint) 
         {
             var response = await _client.GetAsync(endpoint);
             var contents = await response.Content.ReadAsStringAsync();
