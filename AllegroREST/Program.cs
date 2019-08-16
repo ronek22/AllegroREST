@@ -55,10 +55,12 @@ namespace AllegroREST
                         break;
                     case "3":
                         Console.WriteLine("Type number of auction: ");
-                        Console.WriteLine(await allegro.GetOfferDetails("6206525020"));
+                        Console.WriteLine(await allegro.GetOfferDetails(Console.ReadLine()));
                         break;
                     case "4":
-                        await allegro.EditOffer("6206525020", "1500.50", "PLN", 1, "UNIT");
+                        Console.WriteLine("Type number of auction: ");
+                        var auctionNo = Console.ReadLine();
+                        await allegro.EditOffer(auctionNo, "1500.50", "PLN", 1, "UNIT");
                         break;
 
                 }

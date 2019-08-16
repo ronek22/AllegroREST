@@ -19,21 +19,32 @@ namespace AllegroREST
     public class AllegroClient
     {
         #region Constructor and Fields
+        private static readonly bool SANDBOX = false;
         private HttpClient _client { get; }
         private readonly IConfiguration _configuration;
         private readonly string clientId;
         private readonly string secretId;
+        private readonly Uri BASE_LINK;
+        private readonly Uri API_LINK;
 
-        private static readonly Uri BASE_LINK = new Uri("https://allegro.pl.allegrosandbox.pl");
-        private static readonly Uri API_LINK = new Uri("https://api.allegro.pl.allegrosandbox.pl");
         private Token Token { set; get; }
 
         public AllegroClient(HttpClient client, IConfigurationRoot configuration)
         {
             _client = client;
             _configuration = configuration;
-            clientId = _configuration.GetSection("API")["CLIENT_ID"];
-            secretId = _configuration.GetSection("API")["SECRET_ID"];
+            configureEnvironemnt(out clientId, out secretId, out BASE_LINK, out API_LINK);
+        }
+
+        private void configureEnvironemnt(out string _clientId, out string _secretId, out Uri _base, out Uri _api)
+        {
+            IConfigurationSection environment = SANDBOX ? _configuration.GetSection("API:SANDBOX") : _configuration.GetSection("API:PRODUCTION");
+
+            _clientId = environment.GetValue<string>("CLIENT_ID");
+            _secretId = environment.GetValue<string>("SECRET_ID");
+            _base = new Uri(environment.GetValue<string>("BASE_LINK"));
+            _api = new Uri(environment.GetValue<string>("API_LINK"));
+
         }
 
         #endregion
@@ -221,6 +232,7 @@ namespace AllegroREST
 
             var AUTH_LINK = new Uri(BASE_LINK, "/auth/oauth/device");
 
+
             _client.BaseAddress = AUTH_LINK;
             _client.DefaultRequestHeaders.Clear();
             _client.DefaultRequestHeaders.Add("Authorization", GetAuthParameters(clientId, secretId));
@@ -229,6 +241,7 @@ namespace AllegroREST
             var response = await _client.PostAsync(AUTH_LINK, formContent);
             var contents = await response.Content.ReadAsStreamAsync();
             var authData = Utility.Deserialize<AuthorizationData>(contents);
+
 
             return authData;
 

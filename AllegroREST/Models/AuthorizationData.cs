@@ -28,5 +28,7 @@ namespace AllegroREST.Models
 
         [DataMember(Name = "verification_uri_complete")]
         public string VerificationUriComplete { get; set; }
+
+        public override string ToString() => $"UserCode: {UserCode}\nDevice Code: {DeviceCode}\nExpiresIn: {ExpiresIn}\nInterval: {Interval}\nVerification Uri: {VerificationUri}\nVerificationComplete: {VerificationUriComplete}\n";
     }
 }
